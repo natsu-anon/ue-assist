@@ -1,0 +1,6 @@
+@echo off
+
+set DIR=%~dp0
+call %DIR%batch_vars.bat
+call "%UBT%" -projectfiles -vscode -game -engine -dotnet -progress -noIntelliSense "%DIR%PROJECT.uproject"
+ue-assist -c "%DIR%.vscode\compileCommands_PROJECT.json" "%DIR%compile_commands.json"

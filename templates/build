@@ -1,0 +1,5 @@
+@echo off
+
+set DIR=%~dp0
+call %DIR%batch_vars.bat
+call "%BUILD%" PROJECTEditor Win64 Development "%DIR%PROJECT.uproject" -waitmutex -NoHotReload

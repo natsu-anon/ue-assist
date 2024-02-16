@@ -1,0 +1,4 @@
+#include "PROJECT.h"
+#include "Modules/ModuleManager.h"
+
+IMPLEMENT_PRIMARY_GAME_MODULE(FDefaultGameModuleImpl, PROJECT, "PROJECT");

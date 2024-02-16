@@ -1,0 +1,13 @@
+using UnrealBuildTool;
+using System.Collections.Generic;
+
+public class PROJECTTarget : TargetRules
+{
+	public PROJECTTarget(TargetInfo Target) : base(Target)
+	{
+		Type = TargetType.Game;
+		DefaultBuildSettings = BuildSettingsVersion.V2;
+		IncludeOrderVersion = EngineIncludeOrderVersion.UnrealASSOCIATION;
+		ExtraModuleNames.Add("PROJECT");
+	}
+}

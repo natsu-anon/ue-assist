@@ -1,0 +1,16 @@
+compile_commands.json
+*.bat
+*~
+.ignore
+*.code-workspace
+.dir-locals.el
+Binaries/
+Plugins/*/Binaries/*
+Intermediate/
+Plugins/*/Intermediate/*
+DerivedDataCache/
+Saved/
+Content/
+.vscode/
+.cache/
+*_BuildData.uasset

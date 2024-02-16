@@ -1,0 +1,13 @@
+using UnrealBuildTool;
+using System.Collections.Generic;
+
+public class PROJECTEditorTarget : TargetRules
+{
+	public PROJECTEditorTarget(TargetInfo Target) : base(Target)
+	{
+		Type = TargetType.Editor;
+		DefaultBuildSettings = BuildSettingsVersion.V2;
+		IncludeOrderVersion = EngineIncludeOrderVersion.UnrealASSOCIATION;
+		ExtraModuleNames.Add("PROJECT");
+	}
+}
