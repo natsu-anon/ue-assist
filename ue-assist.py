@@ -56,7 +56,7 @@ def main(cli_args):
             print(usage)
             sys.exit(0)
         if o == '-v':
-            print('ue-assist 1.1.0, licensed WTFPLv2')
+            print('ue-assist 1.0.1, licensed WTFPLv2')
             sys.exit(0)
     print("unrecognized command, run 'ue-assist -h' for usage")
     sys.exit(1)
