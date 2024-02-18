@@ -1,0 +1,4 @@
+((nil . ((lsp-clients-clangd-executable . "")))
+ (ue-assist-mode . ((ue-assist--generate-bat . "")
+					(ue-assist--build-bat . "")
+					(ue-assist--editor-bat . ""))))
