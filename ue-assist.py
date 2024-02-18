@@ -56,7 +56,7 @@ def main(cli_args):
             print(usage)
             sys.exit(0)
         if o == '-v':
-            print('ue-assist 1.0.0, licensed WTFPLv2')
+            print('ue-assist 1.1.0, licensed WTFPLv2')
             sys.exit(0)
     print("unrecognized command, run 'ue-assist -h' for usage")
     sys.exit(1)
@@ -72,11 +72,13 @@ def createProject(sDir, pName, pPath=os.getcwd()):
     copyBatchfiles(sDir, pPath, pName, config)
     print("Creating project: {}".format(pName))
     print('Batch files created!')
-    rwReplace(os.path.join(sDir, "templates\\gitignore"), os.path.join(pPath, ".gitignore"), lambda s : s)
+    copyTemplate(os.path.join(sDir, "templates\\gitignore"), os.path.join(pPath, ".gitignore"))
+    copyTemplate(os.path.join(sDir, "templates\\dir-locals"), os.path.join(pPath, ".dir-locals.el"))
     print('.gitignore created!')
     initProject(sDir, pPath, pName, config)
     print('Project created!')
     print("Run 'git init .' for version control")
+    print("Emacs: set default clangd.exe to Microsoft's in .dir-locals.el (and enter ue-assist values)")
 
 def copyBatchfiles(sDir, pPath, pName, config):
     replaceName = lambda s: s.replace('PROJECT', pName)
@@ -86,9 +88,10 @@ def copyBatchfiles(sDir, pPath, pName, config):
         s = s.replace("CONFIG_UE5EDITOR_EXE", config['Paths']['editor_exe'])
         return s
     rwReplace(os.path.join(sDir, "templates\\batch_vars"), os.path.join(pPath, "batch_vars.bat"), temp)
+    generate_path = os.path.join(pPath, 'generate.bat')
+    rwReplace(os.path.join(sDir, "templates\\generate"), os.path.join(pPath, 'generate.bat'), replaceName)
     rwReplace(os.path.join(sDir, "templates\\editor"), os.path.join(pPath, 'editor.bat'), replaceName)
     rwReplace(os.path.join(sDir, "templates\\build"), os.path.join(pPath, "build.bat"), replaceName)
-    rwReplace(os.path.join(sDir, "templates\\generate"), os.path.join(pPath, 'generate.bat'), replaceName)
 
 def initProject(sDir, pPath, pName, config):
     module_path = os.path.join(pPath, 'Source\\{}\\'.format(pName))
@@ -110,7 +113,7 @@ def initProject(sDir, pPath, pName, config):
     rwReplace(os.path.join(sDir, "templates\\Game.Target"), os.path.join(pPath, "Source\\{}.Target.cs".format(pName)), temp)
     rwReplace(os.path.join(sDir, "templates\\Project.Build"), os.path.join(module_path, "{}.Build.cs".format(pName)), replaceName)
     rwReplace(os.path.join(sDir, "templates\\Project.source"), os.path.join(module_path, "{}.cpp".format(pName)), replaceName)
-    rwReplace(os.path.join(sDir, "templates\\Project.header"), os.path.join(module_path, "{}.h".format(pName)), lambda s: s) # lol lomao even
+    copyTemplate(os.path.join(sDir, "templates\\Project.header"), os.path.join(module_path, "{}.h".format(pName)))
     rwReplace(os.path.join(sDir, "templates\\GameModeBase.header"), os.path.join(module_path, "{}GameModeBase.h".format(pName)), lambda s: s.replace('PROJECT', pName.upper()))
     rwReplace(os.path.join(sDir, "templates\\GameModeBase.source"), os.path.join(module_path, "{}GameModeBase.cpp".format(pName)), replaceName)
 
@@ -118,6 +121,12 @@ def rwReplace(origin, destination, fn):
     with open(origin, 'r') as f:
         temp = f.read()
     temp = fn(temp)
+    with open(destination, 'w') as f:
+        f.write(temp)
+
+def copyTemplate(origin, destination):
+    with open(origin, 'r') as f:
+        temp = f.read()
     with open(destination, 'w') as f:
         f.write(temp)
 
@@ -139,7 +148,6 @@ def compilationDatabase(vscodeFilename, targetFilename):
                              "/Zo",
                              "/Z7",
                              "/Zp8",
-                             "/Zc:inline",
                              args[1]]
     with open(targetFilename, "w") as temp:
         temp.write(json.dumps(j, indent='\t'))
