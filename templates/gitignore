@@ -1,5 +1,8 @@
 compile_commands.json
-*.bat
+batch_vars.bat
+generate.bat
+build.bat
+editor.bat
 *~
 .ignore
 *.code-workspace
