@@ -19,7 +19,6 @@ unreal_association: 5_2
 [Paths]
 editor_exe: C:\Program Files\Epic Games\UE_5.2\Engine\Binaries\Win64\UnrealEditor.exe
 ubt_exe: C:\Program Files\Epic Games\UE_5.2\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe
-build_bat: C:\Program Files\Epic Games\UE_5.2\Engine\Build\BatchFiles\Build.bat
 ```
 
 ## Usage
