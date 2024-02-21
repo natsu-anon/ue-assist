@@ -5,93 +5,174 @@ import configparser
 import json
 import re
 
-usage = """ue-assist is a small set of scripts to accelerate unreal development on Windows.
+usage = """UE-Assist is a small set of scripts to accelerate unreal development on Windows.
 NOTE: You have to change config.ini to work on your machine.
 NOTE: Add its directory to your path so you can call it from anywhere.
 NOTE: Only touch the templates if you KNOW what you're doing.
+P.S.: Yeah, I create a .dir-locals.el file by default--I use this.
 
 Usage
 
   ue-assist [options]
 
 Options
+  -a <uproject file>      = Add batch scripts to an existing project.
   -p <name> [<directory>] = Creates a project with given name in given directory
                             if directory is not given creates a project in the
                             current directory.
                             - <name> can only be letters.
                             - <directory> must be empty.
   -c <origin> <target>    = Parses origin file for compilation commands and
-                            outputs to target.  NOTE: called by generate.bat
+                            outputs to target.  This is called by generate.bat
                             to make compile_commands.json for the lsp server.
   -v                      = Prints the version & licensing information.
   -h                      = Prints usage information.
 """
 
 def main(cli_args):
+    sDir = os.path.dirname(os.path.realpath(cli_args[0]))
     try:
-        opts, args = getopt.getopt(cli_args[1:], 'hvp:c')
+        opts, args = getopt.getopt(cli_args[1:], 'hvap:c')
     except getopt.GetoptError as err:
         print(err)
         usage()
         sys.exit(1)
     for o, a in opts:
-        if o == '-p':
-            if not a.isalpha():
-                print("Project names can only be alphabetic characters!")
-                sys.exit(1)
-            sd = os.path.dirname(os.path.realpath(cli_args[0]))
-            if len(args) == 0:
-                createProject(sd, a)
-            else:
-                createProject(sd, a, os.path.realpath(args[0]))
-            sys.exit(0)
-        elif o == '-c':
+        if o == '-c':
             if len(args) != 2:
                 usage()
                 sys.exit(1)
             else:
-                compilationDatabase(args[0], args[1])
+                compilationDatabase(sDir, args[0], args[1])
                 sys.exit(0)
         elif o == '-h':
             print(usage)
             sys.exit(0)
-        if o == '-v':
-            print('ue-assist 1.0.1, licensed WTFPLv2')
+        elif o == '-v':
+            print('ue-assist 1.1.0, licensed WTFPLv2')
             sys.exit(0)
+        else:
+            config = configparser.ConfigParser()
+            configPath = os.path.join(sDir, "config.ini")
+            config.read(configPath)
+            checkConfig(config, configPath)
+            if o == '-a':
+                if len(args) != 1:
+                    print("Pass a .uproject file as an argument!")
+                    sys.exit(1)
+                else:
+                    augmentProject(sDir, args[0], config)
+                    sys.exit(0)
+            elif o == '-p':
+                if len(a) == 0:
+                    print("Enter a project name with of non-zero length!")
+                    sys.exit(1)
+                elif not a.isalpha():
+                    print("Project names can only be alphabetic characters!")
+                    sys.exit(1)
+                if len(args) == 0:
+                    createProject(sDir, a, os.getcwd(), config)
+                else:
+                    createProject(sDir, a, os.path.realpath(args[0]), config)
+                sys.exit(0)
     print("unrecognized command, run 'ue-assist -h' for usage")
     sys.exit(1)
 
-def createProject(sDir, pName, pPath=os.getcwd()):
+def checkConfig(config, configPath):
+    badConfig = False
+    if not config['Settings']['unreal_version']:
+        print('Set "unreal_version" in config.ini!')
+        print('  File "{}", line 2'.format(configPath))
+        badConfig = True
+    if not config['Settings']['unreal_association']:
+        print('Set "unreal_association" in config.ini!')
+        print('  File "{}", line 3'.format(configPath))
+        badConfig = True
+    if not os.path.isfile(config['Paths']['editor_exe']):
+        print('Bad path to UnrealEditor.exe in config.ini!')
+        print('  File "{}", line 6'.format(configPath))
+        badConfig = True
+    if not os.path.isfile(config['Paths']['ubt_exe']):
+        print('Bad path to UnrealBuildTool.exe in config.ini!')
+        print('  File "{}", line 7'.format(configPath))
+        badConfig = True
+    if badConfig:
+        sys.exit(1)
+
+def augmentProject(sDir, uproject, config):
+    uPath = os.path.realpath(uproject)
+    if not os.path.isfile(uPath):
+        print("{} is not a file!".format(uproject))
+        sys.exit(1)
+    result = re.search(r"^(\w+)\.uproject$", uproject)
+    pName = ""
+    if not result:
+        print("{} uPath is not a Unreal project file!")
+        sys.exit(1)
+    else:
+        pName = result.group(1)
+    pPath = os.path.dirname(uPath)
+    bPaths = copyBatchfiles(sDir, pPath, pName, config)
+    print('Batch files created!')
+    dlPath = copyDirLocals(sDir, pPath, bPaths, pName)
+    print('.dir-locals.el created!')
+    copyTemplate(os.path.join(sDir, "templates\\clangd_flags"), os.path.join(pPath, "clangd_flags"))
+    print("clangd_flags added!")
+    print("Emacs: set default clangd.exe to Microsoft's in .dir-locals.el")
+    print('  File "{}", line 1, for proper LSP integration'.format(dlPath))
+
+def createProject(sDir, pName, pPath, config):
     if not os.path.exists(pPath):
         os.makedirs(pPath)
     elif len(os.listdir(pPath)) > 0:
         print("directory is not empty!  Please give a path to a non-existant or empty directory to create an Unreal project")
         sys.exit(1)
-    config = configparser.ConfigParser()
-    config.read(os.path.join(sDir, "config.ini"))
-    copyBatchfiles(sDir, pPath, pName, config)
     print("Creating project: {}".format(pName))
+    bPaths = copyBatchfiles(sDir, pPath, pName, config)
     print('Batch files created!')
+    dlPath = copyDirLocals(sDir, pPath, bPaths, pName)
+    print('.dir-locals.el created!')
     copyTemplate(os.path.join(sDir, "templates\\gitignore"), os.path.join(pPath, ".gitignore"))
-    copyTemplate(os.path.join(sDir, "templates\\dir-locals"), os.path.join(pPath, ".dir-locals.el"))
     print('.gitignore created!')
+    copyTemplate(os.path.join(sDir, "templates\\clangd_flags"), os.path.join(pPath, "clangd_flags"))
+    print("clagd_flags created!")
     initProject(sDir, pPath, pName, config)
     print('Project created!')
     print("Run 'git init .' for version control")
-    print("Emacs: set default clangd.exe to Microsoft's in .dir-locals.el (and enter ue-assist values)")
+    print("Emacs: set default clangd.exe to Microsoft's in .dir-locals.el")
+    print('  File "{}", line 1, for proper LSP integration'.format(dlPath))
+
 
 def copyBatchfiles(sDir, pPath, pName, config):
     replaceName = lambda s: s.replace('PROJECT', pName)
     def temp(s):
-        s = s.replace("CONFIG_BUILD_BAT", config['Paths']['build_bat'])
+        s = s.replace("CONFIG_BUILD_BAT", config['Paths']['ubt_exe'])
         s = s.replace("CONFIG_UBT_EXE", config['Paths']['ubt_exe'])
         s = s.replace("CONFIG_UE5EDITOR_EXE", config['Paths']['editor_exe'])
         return s
     rwReplace(os.path.join(sDir, "templates\\batch_vars"), os.path.join(pPath, "batch_vars.bat"), temp)
-    generate_path = os.path.join(pPath, 'generate.bat')
-    rwReplace(os.path.join(sDir, "templates\\generate"), os.path.join(pPath, 'generate.bat'), replaceName)
-    rwReplace(os.path.join(sDir, "templates\\editor"), os.path.join(pPath, 'editor.bat'), replaceName)
-    rwReplace(os.path.join(sDir, "templates\\build"), os.path.join(pPath, "build.bat"), replaceName)
+    generatePath = os.path.join(pPath, 'generate.bat')
+    buildPath = os.path.join(pPath, 'build.bat')
+    editorPath = os.path.join(pPath, 'editor.bat')
+    rwReplace(os.path.join(sDir, "templates\\generate"), generatePath, replaceName)
+    rwReplace(os.path.join(sDir, "templates\\build"), buildPath, replaceName)
+    rwReplace(os.path.join(sDir, "templates\\editor"), editorPath, replaceName)
+    return {
+        "generate": generatePath.replace("\\", "/"),
+        "build": buildPath.replace("\\", "/"),
+        "editor": editorPath.replace("\\", "/")
+    }
+
+def copyDirLocals(sDir, pPath, bPaths, pName):
+    def temp(s):
+        s = s.replace("GENERATE_BAT", bPaths["generate"])
+        s = s.replace("BUILD_BAT", bPaths["build"])
+        s = s.replace("EDITOR_BAT", bPaths["editor"])
+        s = s.replace('PROJECT', pName.upper())
+        return s
+    dlPath = os.path.join(pPath, ".dir-locals.el")
+    rwReplace(os.path.join(sDir, "templates\\dir-locals"), dlPath, temp)
+    return dlPath
 
 def initProject(sDir, pPath, pName, config):
     module_path = os.path.join(pPath, 'Source\\{}\\'.format(pName))
@@ -130,7 +211,12 @@ def copyTemplate(origin, destination):
     with open(destination, 'w') as f:
         f.write(temp)
 
-def compilationDatabase(vscodeFilename, targetFilename):
+def compilationDatabase(sDir, vscodeFilename, targetFilename):
+    pPath = os.path.dirname(targetFilename)
+    flagsFilename = os.path.join(pPath, "clangd_flags")
+    if not os.path.isfile(flagsFilename):
+        copyTemplate(os.path.join(sDir, "templates\\clangd_flags"), os.path.join(pPath, "clangd_flags"))
+    flagArgs = "@" + flagsFilename
     j = json.load(open(vscodeFilename))
     pattern = re.compile(".+?~$") # skip emacs backup files
     for i in range(len(j) - 1, -1, -1):
@@ -139,16 +225,7 @@ def compilationDatabase(vscodeFilename, targetFilename):
             j.pop(i)
             continue
         args = j[i]["arguments"]
-        j[i]["arguments"] = [ args[0],
-                             "/std:c++20", # TOUCH AND DIE
-                             "/Wall",
-                             "/Gw",
-                             "/Gy",
-                             "/Zc:inline",
-                             "/Zo",
-                             "/Z7",
-                             "/Zp8",
-                             args[1]]
+        j[i]["arguments"] = [ args[0], flagArgs, args[1]]
     with open(targetFilename, "w") as temp:
         temp.write(json.dumps(j, indent='\t'))
 
